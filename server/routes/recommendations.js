@@ -64,6 +64,10 @@ router.get('/buddies/:userId', (req, res) => {
     }
     if (sharedInstruments.length > 0) {
       reasons.push({ factor: '共同乐器', text: `你们都弹${sharedInstruments.join('、')}` });
+    } else if (instrument) {
+      reasons.push({ factor: '共同乐器', text: `TA不弹${instrument}，与你筛选的乐器不匹配` });
+    } else {
+      reasons.push({ factor: '共同乐器', text: `TA擅长${candidate.instruments.join('、')}，可尝试新的音乐碰撞` });
     }
     
     if (sharedInstruments.length > 0 || !instrument) {
@@ -89,6 +93,8 @@ router.get('/buddies/:userId', (req, res) => {
       score += timeScore;
       details.timeMatch = timeScore;
       reasons.push({ factor: '空闲时间重合', text: `空闲时间重合：${sharedTimes.join('、')}` });
+    } else {
+      reasons.push({ factor: '空闲时间重合', text: `你的空闲时间${currentUser.freeTimes.join('、')}，TA的${candidate.freeTimes.join('、')}，暂无重合` });
     }
     
     score += (candidate.rating || 5) * 2;
@@ -98,6 +104,10 @@ router.get('/buddies/:userId', (req, res) => {
     );
     if (commonPieces.length > 0) {
       reasons.push({ factor: '想练曲目', text: `都想练：${commonPieces.join('、')}` });
+    } else if (candidate.favoritePieces.length > 0) {
+      reasons.push({ factor: '想练曲目', text: `TA想练${candidate.favoritePieces.join('、')}，可了解一下` });
+    } else {
+      reasons.push({ factor: '想练曲目', text: 'TA还没有添加想练的曲目' });
     }
     
     return {
@@ -171,6 +181,10 @@ router.get('/instruments/:userId', (req, res) => {
       score += 20;
       details.categoryMatch = 20;
       reasons.push({ factor: '品类', text: `${inst.category}正是你擅长的乐器` });
+    } else if (category && inst.category !== category) {
+      reasons.push({ factor: '品类', text: `品类${inst.category}与你筛选的${category}不匹配` });
+    } else {
+      reasons.push({ factor: '品类', text: `${inst.category}品类，可尝试新乐器` });
     }
     
     const owner = users.find(u => u.id === inst.ownerId) || null;
