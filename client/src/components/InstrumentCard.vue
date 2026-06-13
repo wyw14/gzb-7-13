@@ -28,6 +28,15 @@
           <span class="fee">¥{{ instrument.dailyFee }}<small>/天</small></span>
         </div>
       </div>
+      <div class="reason-block" v-if="instrument.reasons && instrument.reasons.length">
+        <div class="reason-title"><el-icon><InfoFilled /></el-icon> 推荐理由</div>
+        <div class="reason-list">
+          <span v-for="r in instrument.reasons" :key="r.factor" class="reason-item">
+            <span class="reason-factor">{{ r.factor }}</span>
+            <span class="reason-text">{{ r.text }}</span>
+          </span>
+        </div>
+      </div>
       <div class="location-row">
         <el-icon><Location /></el-icon>
         <span>{{ instrument.location }}</span>
@@ -38,7 +47,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Location } from '@element-plus/icons-vue'
+import { Location, InfoFilled } from '@element-plus/icons-vue'
 
 const props = defineProps({
   instrument: {
@@ -209,5 +218,52 @@ const conditionClass = computed(() => {
   gap: 4px;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.reason-block {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  border: 1px solid #e0f2fe;
+}
+
+.reason-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+  margin-bottom: 6px;
+}
+
+.reason-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reason-item {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.reason-factor {
+  display: inline-block;
+  padding: 0 5px;
+  background: #bae6fd;
+  border-radius: 3px;
+  color: #0c4a6e;
+  font-weight: 500;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.reason-text {
+  color: #475569;
 }
 </style>

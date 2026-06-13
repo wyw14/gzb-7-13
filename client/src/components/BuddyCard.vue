@@ -54,6 +54,16 @@
       </div>
     </div>
     
+    <div class="reason-block" v-if="user.reasons && user.reasons.length">
+      <div class="reason-title"><el-icon><InfoFilled /></el-icon> 为什么推荐</div>
+      <div class="reason-list">
+        <span v-for="r in user.reasons" :key="r.factor" class="reason-item">
+          <span class="reason-factor">{{ r.factor }}</span>
+          <span class="reason-text">{{ r.text }}</span>
+        </span>
+      </div>
+    </div>
+
     <div class="location" v-if="user.distance !== undefined || user.district">
       <el-icon><Location /></el-icon>
       {{ user.district || user.city }}
@@ -73,7 +83,7 @@
 </template>
 
 <script setup>
-import { Star, MagicStick, Notebook, Clock, Location, ChatDotRound } from '@element-plus/icons-vue'
+import { Star, MagicStick, Notebook, Clock, Location, ChatDotRound, InfoFilled } from '@element-plus/icons-vue'
 
 defineProps({
   user: { type: Object, required: true },
@@ -236,5 +246,52 @@ defineEmits(['invite'])
 .buddy-actions {
   display: flex;
   gap: 10px;
+}
+
+.reason-block {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: #f0fdf4;
+  border-radius: 6px;
+  border: 1px solid #dcfce7;
+}
+
+.reason-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #15803d;
+  margin-bottom: 6px;
+}
+
+.reason-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reason-item {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.reason-factor {
+  display: inline-block;
+  padding: 0 5px;
+  background: #bbf7d0;
+  border-radius: 3px;
+  color: #14532d;
+  font-weight: 500;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.reason-text {
+  color: #475569;
 }
 </style>

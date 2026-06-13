@@ -32,6 +32,7 @@ router.get('/buddies/:userId', (req, res) => {
   const scored = candidates.map(candidate => {
     let score = 0;
     const details = { instrumentMatch: 0, levelMatch: 0, timeMatch: 0, distance: 0 };
+    const reasons = [];
     
     const distance = haversineDistance(
       currentUser.latitude, currentUser.longitude,
@@ -43,7 +44,7 @@ router.get('/buddies/:userId', (req, res) => {
       const distScore = Math.max(0, 30 * (1 - distance / maxDistance));
       score += distScore;
     } else {
-      return { ...candidate, score: -1, distance, matchDetails: details, isMatched: false };
+      return { ...candidate, score: -1, distance, matchDetails: details, isMatched: false, reasons: [] };
     }
     
     let sharedInstruments = [];
@@ -61,6 +62,9 @@ router.get('/buddies/:userId', (req, res) => {
         details.instrumentMatch = instScore;
       }
     }
+    if (sharedInstruments.length > 0) {
+      reasons.push({ factor: '共同乐器', text: `你们都弹${sharedInstruments.join('、')}` });
+    }
     
     if (sharedInstruments.length > 0 || !instrument) {
       const levelDiff = Math.abs(
@@ -70,6 +74,13 @@ router.get('/buddies/:userId', (req, res) => {
       const levelScore = levelDiff === 0 ? 20 : levelDiff === 1 ? 10 : 3;
       score += levelScore;
       details.levelMatch = levelScore;
+      if (levelDiff === 0) {
+        reasons.push({ factor: '水平接近', text: `你们都是${candidate.skillLevel}，水平完全匹配` });
+      } else if (levelDiff === 1) {
+        reasons.push({ factor: '水平接近', text: `你是${currentUser.skillLevel}，TA是${candidate.skillLevel}，水平较接近` });
+      } else {
+        reasons.push({ factor: '水平接近', text: `你是${currentUser.skillLevel}，TA是${candidate.skillLevel}` });
+      }
     }
     
     const sharedTimes = candidate.freeTimes.filter(t => currentUser.freeTimes.includes(t));
@@ -77,6 +88,7 @@ router.get('/buddies/:userId', (req, res) => {
       const timeScore = Math.min(15, sharedTimes.length * 4);
       score += timeScore;
       details.timeMatch = timeScore;
+      reasons.push({ factor: '空闲时间重合', text: `空闲时间重合：${sharedTimes.join('、')}` });
     }
     
     score += (candidate.rating || 5) * 2;
@@ -84,6 +96,9 @@ router.get('/buddies/:userId', (req, res) => {
     const commonPieces = candidate.favoritePieces.filter(p => 
       currentUser.favoritePieces.includes(p)
     );
+    if (commonPieces.length > 0) {
+      reasons.push({ factor: '想练曲目', text: `都想练：${commonPieces.join('、')}` });
+    }
     
     return {
       ...candidate,
@@ -93,7 +108,8 @@ router.get('/buddies/:userId', (req, res) => {
       sharedInstruments,
       sharedTimes,
       commonPieces,
-      isMatched: score >= 30
+      isMatched: score >= 30,
+      reasons
     };
   });
   
@@ -124,7 +140,8 @@ router.get('/instruments/:userId', (req, res) => {
   
   const scored = available.map(inst => {
     let score = 0;
-    const details = { categoryMatch: 0, distance: 0, priceScore: 0, conditionScore: 0 };
+    const details = { categoryMatch: 0, distance: 0, priceScore: 0, ownerCreditScore: 0 };
+    const reasons = [];
     
     const distance = haversineDistance(
       currentUser.latitude, currentUser.longitude,
@@ -135,35 +152,67 @@ router.get('/instruments/:userId', (req, res) => {
     if (distance <= maxDistance) {
       const distScore = Math.max(0, 40 * (1 - distance / maxDistance));
       score += distScore;
+      if (distance <= 3) {
+        reasons.push({ factor: '距离', text: `距你仅${Math.round(distance * 10) / 10}km，非常近` });
+      } else if (distance <= 10) {
+        reasons.push({ factor: '距离', text: `距你${Math.round(distance * 10) / 10}km，较近` });
+      } else {
+        reasons.push({ factor: '距离', text: `距你${Math.round(distance * 10) / 10}km` });
+      }
     } else {
-      return { ...inst, score: -1, distance, matchDetails: details, owner: null };
+      return { ...inst, score: -1, distance, matchDetails: details, owner: null, reasons: [] };
     }
     
     if (category && inst.category === category) {
       score += 30;
       details.categoryMatch = 30;
+      reasons.push({ factor: '品类', text: `品类匹配你筛选的${category}` });
     } else if (!category && currentUser.instruments.includes(inst.category)) {
       score += 20;
       details.categoryMatch = 20;
+      reasons.push({ factor: '品类', text: `${inst.category}正是你擅长的乐器` });
     }
-    
-    const conditionScore = inst.condition === '九五新' ? 15 :
-                          inst.condition === '九成新' ? 12 :
-                          inst.condition === '八五新' ? 8 : 5;
-    score += conditionScore;
-    details.conditionScore = conditionScore;
     
     const owner = users.find(u => u.id === inst.ownerId) || null;
     if (owner) {
-      score += (owner.rating || 5) * 3;
+      const ownerCreditScore = (owner.rating || 5) * 3;
+      score += ownerCreditScore;
+      details.ownerCreditScore = ownerCreditScore;
+      const rating = owner.rating || 5;
+      if (rating >= 4.5) {
+        reasons.push({ factor: '主人信用', text: `主人信用${rating}分，非常靠谱` });
+      } else if (rating >= 3.5) {
+        reasons.push({ factor: '主人信用', text: `主人信用${rating}分，信誉良好` });
+      } else {
+        reasons.push({ factor: '主人信用', text: `主人信用${rating}分` });
+      }
     }
+
+    const fee = inst.dailyFee || 0;
+    let priceScore = 0;
+    if (fee === 0) {
+      priceScore = 15;
+      reasons.push({ factor: '价格', text: '免费借用' });
+    } else if (fee <= 30) {
+      priceScore = 12;
+      reasons.push({ factor: '价格', text: `日租¥${fee}，价格实惠` });
+    } else if (fee <= 80) {
+      priceScore = 8;
+      reasons.push({ factor: '价格', text: `日租¥${fee}，价格适中` });
+    } else {
+      priceScore = 3;
+      reasons.push({ factor: '价格', text: `日租¥${fee}` });
+    }
+    score += priceScore;
+    details.priceScore = priceScore;
     
     return {
       ...inst,
       score: Math.round(score * 10) / 10,
       distance: Math.round(distance * 10) / 10,
       matchDetails: details,
-      owner
+      owner,
+      reasons
     };
   });
   
